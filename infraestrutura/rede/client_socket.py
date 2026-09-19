@@ -13,10 +13,19 @@ class ClienteSocket:
         self._buffer_recebimento = b""
 
     def conectar(self):
+        if self.conectado:
+            return
+
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.socket.connect((self.host, self.porta))
-        self.conectado = True
+        try:
+            self.socket.connect((self.host, self.porta))
+        except Exception:
+            self.socket.close()
+            self.socket = None
+            raise
+
         self._buffer_recebimento = b""
+        self.conectado = True
 
     def enviar(self, evento):
         if not self.conectado:
@@ -39,6 +48,13 @@ class ClienteSocket:
 
     def fechar(self):
         if self.socket:
-            self.socket.close()
+            try:
+                self.socket.shutdown(socket.SHUT_RDWR)
+            except OSError:
+                pass
+            finally:
+                self.socket.close()
+
+        self.socket = None
         self.conectado = False
         self._buffer_recebimento = b""

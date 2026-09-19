@@ -9,17 +9,22 @@ class ThreadRecepcao(threading.Thread):
         super().__init__(daemon=True)
         self.cliente_socket = cliente_socket
         self.callback = callback
-        self.executando = True
+        self._parar_evento = threading.Event()
 
     def run(self):
-        while self.executando:
+        while not self._parar_evento.is_set():
             try:
-                self.callback(desserializar(self.cliente_socket.receber()))
+                evento = desserializar(self.cliente_socket.receber())
             except ConnectionError:
-                self.executando = False
+                break
             except Exception as erro:
                 print(f"Erro na recepção: {erro}")
-                self.executando = False
+                continue
+
+            try:
+                self.callback(evento)
+            except Exception as erro:
+                print(f"Erro no processamento do evento: {erro}")
 
     def parar(self):
-        self.executando = False
+        self._parar_evento.set()
