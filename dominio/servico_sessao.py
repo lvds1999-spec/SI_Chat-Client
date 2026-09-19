@@ -8,6 +8,8 @@ from infraestrutura.rede.protocolo import (
     criar_login,
     criar_registro,
     criar_adicionar_contato,
+    criar_remover_contato,
+    criar_logout,
 )
 
 
@@ -30,6 +32,14 @@ class ServicoSessao:
 
     def adicionar_contato(self, contato):
         self.cliente_socket.enviar(criar_adicionar_contato(contato))
+
+    def remover_contato(self, contato):
+        self.cliente_socket.enviar(criar_remover_contato(contato))
+
+    def logout(self):
+        if self.cliente_socket.conectado:
+            self.cliente_socket.enviar(criar_logout())
+        self.fechar()
 
     def definir_callback(self, callback):
         if self.thread_recepcao:

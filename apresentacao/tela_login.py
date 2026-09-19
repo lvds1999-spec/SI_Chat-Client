@@ -1,6 +1,6 @@
 import tkinter as tk
 
-from apresentacao.tela_chat import TelaChat
+from apresentacao.tela_principal import TelaPrincipal
 from dominio.servico_sessao import (
     LOGIN,
     REGISTRO,
@@ -11,11 +11,14 @@ from dominio.servico_sessao import (
 
 class TelaLogin:
 
-    def __init__(self, servico_sessao):
+    def __init__(self, servico_sessao, janela=None):
         self.servico_sessao = servico_sessao
         self.ativa = True
 
-        self.janela = tk.Tk()
+        self.janela = janela or tk.Tk()
+        if janela is not None:
+            for widget in self.janela.winfo_children():
+                widget.destroy()
         self.janela.title("Login - Cliente de Chat")
         self.janela.geometry("420x320")
         self.janela.protocol("WM_DELETE_WINDOW", self.fechar)
@@ -123,8 +126,18 @@ class TelaLogin:
     def abrir_chat(self):
         usuario = self.nome.get().strip()
         self.ativa = False
-        tela_chat = TelaChat(self.servico_sessao, usuario, self.janela)
-        self.servico_sessao.definir_callback(tela_chat.processar_evento)
+        tela_principal = TelaPrincipal(
+            self.servico_sessao,
+            usuario,
+            self.janela,
+            self.voltar_login
+        )
+        self.servico_sessao.definir_callback(tela_principal.processar_evento)
+
+    def voltar_login(self):
+        novo_servico = type(self.servico_sessao)()
+        nova_tela = TelaLogin(novo_servico, self.janela)
+        novo_servico.conectar(nova_tela.processar_evento)
 
     def iniciar(self):
         self.janela.mainloop()

@@ -6,10 +6,14 @@ RESPOSTA_REGISTRO = "resposta_registro"
 
 LOGIN = "login"
 RESPOSTA_LOGIN = "resposta_login"
+LOGOUT = "logout"
+RESPOSTA_LOGOUT = "resposta_logout"
 
 LISTA_CONTATOS = "lista_contatos"
 ADICIONAR_CONTATO = "adicionar_contato"
 RESPOSTA_ADICIONAR_CONTATO = "resposta_adicionar_contato"
+REMOVER_CONTATO = "remover_contato"
+RESPOSTA_REMOVER_CONTATO = "resposta_remover_contato"
 
 MENSAGEM = "mensagem"
 ENTREGA_MENSAGEM = "entrega_mensagem"
@@ -152,5 +156,32 @@ def criar_resposta_adicionar_contato(sucesso, contato, mensagem):
         "evento": RESPOSTA_ADICIONAR_CONTATO,
         "sucesso": sucesso,
         "contato": contato,
+        "mensagem": mensagem
+    }
+
+
+def criar_remover_contato(contato):
+    return {
+        "evento": REMOVER_CONTATO,
+        "contato": contato
+    }
+
+
+def criar_resposta_remover_contato(sucesso, contato, mensagem):
+    return {
+        "evento": RESPOSTA_REMOVER_CONTATO,
+        "sucesso": sucesso,
+        "contato": contato,
+        "mensagem": mensagem
+    }
+
+
+def criar_logout():
+    return {"evento": LOGOUT}
+
+
+def criar_resposta_logout(mensagem):
+    return {
+        "evento": RESPOSTA_LOGOUT,
         "mensagem": mensagem
     }

@@ -1,4 +1,5 @@
 import tkinter as tk
+from tkinter import messagebox
 from datetime import datetime
 
 
@@ -44,6 +45,12 @@ class TelaChat:
             text="Adicionar",
             command=self.adicionar_contato
         ).pack(side=tk.RIGHT, padx=(5, 0))
+
+        tk.Button(
+            painel_contatos,
+            text="Excluir selecionado",
+            command=self.remover_contato
+        ).pack(fill=tk.X, pady=(0, 8))
 
         self.lista_contatos = tk.Listbox(painel_contatos, exportselection=False)
         self.lista_contatos.pack(fill=tk.BOTH, expand=True)
@@ -112,6 +119,24 @@ class TelaChat:
         if selecionado in self.contatos:
             indice = list(sorted(self.contatos)).index(selecionado)
             self.lista_contatos.selection_set(indice)
+
+    def remover_contato(self):
+        if not self.contato_selecionado:
+            self.status_digitacao.config(text="Selecione um contato para excluir.")
+            return
+
+        confirmar = messagebox.askyesno(
+            "Excluir contato",
+            f"Deseja excluir {self.contato_selecionado} da sua lista?"
+        )
+        if not confirmar:
+            return
+
+        try:
+            self.servico_sessao.remover_contato(self.contato_selecionado)
+            self.status_digitacao.config(text="Excluindo contato...")
+        except Exception as erro:
+            self.status_digitacao.config(text=f"Não foi possível excluir: {erro}")
 
     def selecionar_contato(self, _evento=None):
         selecao = self.lista_contatos.curselection()
@@ -187,12 +212,24 @@ class TelaChat:
         tipo = evento.get("evento")
 
         if tipo == "lista_contatos":
+            contatos_recebidos = set()
             for contato in evento.get("contatos", []):
                 nome = contato.get("usuario")
                 if nome and nome != self.usuario:
+                    contatos_recebidos.add(nome)
                     self.contatos[nome] = contato.get("online", False)
                     self.conversas.setdefault(nome, [])
+
+            for nome in set(self.contatos) - contatos_recebidos:
+                self.contatos.pop(nome, None)
+                self.conversas.pop(nome, None)
+                if self.contato_selecionado == nome:
+                    self.contato_selecionado = None
+
             self.atualizar_lista_contatos()
+            if not self.contato_selecionado:
+                self.titulo_conversa.config(text="Selecione um contato")
+                self.exibir_conversa()
         elif tipo == "resposta_adicionar_contato":
             contato = evento.get("contato")
             if evento.get("sucesso"):
@@ -206,6 +243,19 @@ class TelaChat:
                 self.status_digitacao.config(
                     text=evento.get("mensagem", "Contato não encontrado no servidor.")
                 )
+        elif tipo == "resposta_remover_contato":
+            contato = evento.get("contato")
+            if evento.get("sucesso"):
+                self.contatos.pop(contato, None)
+                self.conversas.pop(contato, None)
+                if self.contato_selecionado == contato:
+                    self.contato_selecionado = None
+                    self.titulo_conversa.config(text="Selecione um contato")
+                    self.exibir_conversa()
+                self.atualizar_lista_contatos()
+            self.status_digitacao.config(
+                text=evento.get("mensagem", "Não foi possível excluir o contato.")
+            )
         elif tipo == "presenca":
             usuario = evento.get("usuario")
             if usuario in self.contatos:
