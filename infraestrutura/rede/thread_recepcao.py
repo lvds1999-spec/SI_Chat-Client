@@ -28,3 +28,6 @@ class ThreadRecepcao(threading.Thread):
 
     def parar(self):
         self._parar_evento.set()
+
+    def definir_callback(self, callback):
+        self.callback = callback

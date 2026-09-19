@@ -4,7 +4,7 @@ from pathlib import Path
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from apresentacao.gui import GUI
+from apresentacao.tela_login import TelaLogin
 from dominio.servico_sessao import ServicoSessao
 
 
@@ -15,7 +15,7 @@ def main():
         porta=8000
     )
 
-    gui = GUI(servico_sessao)
+    gui = TelaLogin(servico_sessao)
     servico_sessao.conectar(gui.processar_evento)
 
     try:

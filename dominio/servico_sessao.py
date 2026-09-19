@@ -7,6 +7,7 @@ from infraestrutura.rede.protocolo import (
     RESPOSTA_REGISTRO,
     criar_login,
     criar_registro,
+    criar_adicionar_contato,
 )
 
 
@@ -26,6 +27,16 @@ class ServicoSessao:
 
     def login(self, usuario, senha):
         self.cliente_socket.enviar(criar_login(usuario, senha))
+
+    def adicionar_contato(self, contato):
+        self.cliente_socket.enviar(criar_adicionar_contato(contato))
+
+    def definir_callback(self, callback):
+        if self.thread_recepcao:
+            self.thread_recepcao.definir_callback(callback)
+
+    def enviar_evento(self, evento):
+        self.cliente_socket.enviar(evento)
 
     def fechar(self):
         if self.thread_recepcao:
