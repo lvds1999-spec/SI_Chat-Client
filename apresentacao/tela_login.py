@@ -13,6 +13,7 @@ class TelaLogin:
 
     def __init__(self, servico_sessao):
         self.servico_sessao = servico_sessao
+        self.ativa = True
 
         self.janela = tk.Tk()
         self.janela.title("Login - Cliente de Chat")
@@ -87,9 +88,14 @@ class TelaLogin:
             )
 
     def processar_evento(self, evento):
+        if not self.ativa:
+            return
         self.janela.after(0, self._exibir_resposta, evento)
 
     def _exibir_resposta(self, evento):
+        if not self.ativa or not self.janela.winfo_exists():
+            return
+
         tipo = evento.get("evento", evento.get("tipo"))
         sucesso = evento.get("sucesso") is True
         mensagem = evento.get("mensagem")
@@ -106,15 +112,17 @@ class TelaLogin:
             self.abrir_chat()
         elif tipo == RESPOSTA_LOGIN:
             self.status.config(text=mensagem or "Credenciais inválidas.")
-        else:
+        elif tipo in (RESPOSTA_REGISTRO, RESPOSTA_LOGIN):
             self.status.config(text=mensagem or f"Evento recebido: {tipo}")
 
     def fechar(self):
+        self.ativa = False
         self.servico_sessao.fechar()
         self.janela.destroy()
 
     def abrir_chat(self):
         usuario = self.nome.get().strip()
+        self.ativa = False
         tela_chat = TelaChat(self.servico_sessao, usuario, self.janela)
         self.servico_sessao.definir_callback(tela_chat.processar_evento)
 

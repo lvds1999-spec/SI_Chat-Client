@@ -15,7 +15,7 @@ class ThreadRecepcao(threading.Thread):
         while not self._parar_evento.is_set():
             try:
                 evento = desserializar(self.cliente_socket.receber())
-            except ConnectionError:
+            except (ConnectionError, OSError):
                 break
             except Exception as erro:
                 print(f"Erro na recepção: {erro}")

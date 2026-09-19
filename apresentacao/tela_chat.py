@@ -12,6 +12,7 @@ class TelaChat:
         self.conversas = {}
         self.contato_selecionado = None
         self.digitando_enviado = False
+        self.ativa = True
 
         self.janela.title(f"Chat - {usuario}")
         self.janela.geometry("760x500")
@@ -176,9 +177,13 @@ class TelaChat:
         self.digitando_enviado = False
 
     def processar_evento(self, evento):
+        if not self.ativa or not self.janela.winfo_exists():
+            return
         self.janela.after(0, self._processar_evento, evento)
 
     def _processar_evento(self, evento):
+        if not self.ativa or not self.janela.winfo_exists():
+            return
         tipo = evento.get("evento")
 
         if tipo == "lista_contatos":
@@ -225,5 +230,6 @@ class TelaChat:
                 self.status_digitacao.config(text=texto)
 
     def fechar(self):
+        self.ativa = False
         self.servico_sessao.fechar()
         self.janela.destroy()
