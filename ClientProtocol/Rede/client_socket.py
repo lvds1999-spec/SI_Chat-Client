@@ -11,6 +11,7 @@ class ClienteSocket:
 
         self.socket = None
         self.conectado = False
+        self._buffer_recebimento = b""
 
     def conectar(self):
         """Conecta o cliente ao servidor."""
@@ -20,6 +21,7 @@ class ClienteSocket:
         self.socket.connect((self.host, self.porta))
 
         self.conectado = True
+        self._buffer_recebimento = b""
 
         print("Conectado ao servidor.")
 
@@ -43,13 +45,17 @@ class ClienteSocket:
         if not self.conectado:
             raise ConnectionError("Cliente não está conectado.")
 
-        dados = self.socket.recv(4096)
+        while b"\n" not in self._buffer_recebimento:
+            dados = self.socket.recv(4096)
 
-        if not dados:
-            self.conectado = False
-            raise ConnectionError("Servidor encerrou a conexão.")
+            if not dados:
+                self.conectado = False
+                raise ConnectionError("Servidor encerrou a conexão.")
 
-        return dados
+            self._buffer_recebimento += dados
+
+        linha, self._buffer_recebimento = self._buffer_recebimento.split(b"\n", 1)
+        return linha + b"\n"
 
     def fechar(self):
         """Fecha a conexão com o servidor."""
@@ -58,5 +64,6 @@ class ClienteSocket:
             self.socket.close()
 
         self.conectado = False
+        self._buffer_recebimento = b""
 
         print("Conexão encerrada.")

@@ -44,3 +44,23 @@ def desserializar(linha):
     """
 
     return json.loads(linha.decode("utf-8"))
+
+def criar_registro(usuario, senha):
+
+    return {
+        "evento": REGISTRO,
+        "usuario": usuario,
+        "senha": senha
+    }
+
+
+def criar_resposta_registro(
+    sucesso,
+    mensagem
+):
+
+    return {
+        "evento": RESPOSTA_REGISTRO,
+        "sucesso": sucesso,
+        "mensagem": mensagem
+    }

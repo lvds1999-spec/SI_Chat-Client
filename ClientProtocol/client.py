@@ -9,18 +9,6 @@ from ClientProtocol.Rede.thread_recepcao import ThreadRecepcao
 from ClientProtocol.Interface.gui import GUI
 
 
-def processar_evento(evento):
-    """
-    Recebe eventos enviados pelo servidor.
-
-    Posteriormente essa função será substituída
-    pelo tratamento adequado de cada evento.
-    """
-
-    print("Evento recebido:")
-    print(evento)
-
-
 def main():
 
     cliente_socket = ClienteSocket(
@@ -30,13 +18,12 @@ def main():
 
     cliente_socket.conectar()
 
+    gui = GUI(cliente_socket)
     thread_recepcao = ThreadRecepcao(
         cliente_socket,
-        processar_evento
+        gui.processar_evento
     )
     thread_recepcao.start()
-
-    gui = GUI(cliente_socket)
 
     try:
         gui.iniciar()
