@@ -17,6 +17,7 @@ class TelaPrincipal:
         self.digitando_enviado = False
         self.contato_selecionado = None
         self.contatos = {}
+        self.deslogando = False
 
         self.janela.title(f"Chat - {usuario}")
         self.janela.geometry("760x500")
@@ -137,12 +138,24 @@ class TelaPrincipal:
                 if self.contato_selecionado == contato:
                     self.contato_selecionado = None
             self.tela_conversa.definir_status(evento.get("mensagem", ""))
+        elif tipo == "resposta_logout":
+            self.concluir_logout()
         elif tipo == "mensagem":
-            self.tela_contatos.adicionar(evento.get("remetente"), True)
+            remetente = evento.get("remetente")
+            self.tela_contatos.adicionar(remetente, True)
             self.tela_conversa.adicionar_mensagem(evento, recebida=True)
+            if self.contato_selecionado != remetente:
+                self.tela_conversa.definir_status(
+                    f"Nova mensagem de {remetente}."
+                )
         elif tipo == "fila_offline":
-            for mensagem in evento.get("mensagens", []):
+            mensagens = evento.get("mensagens", [])
+            for mensagem in mensagens:
                 self._processar_evento(mensagem)
+            if mensagens:
+                self.tela_conversa.definir_status(
+                    f"{len(mensagens)} mensagem(ns) recebida(s) enquanto offline."
+                )
         elif tipo == "aviso_digitando":
             if evento.get("remetente") == self.contato_selecionado:
                 texto = "está digitando..." if evento.get("digitando") else ""
@@ -154,6 +167,13 @@ class TelaPrincipal:
         self.janela.destroy()
 
     def sair(self):
-        self.ativa = False
+        if self.deslogando:
+            return
+        self.deslogando = True
+        self.tela_conversa.definir_status("Encerrando sessão...")
         self.servico_sessao.logout()
+
+    def concluir_logout(self):
+        self.ativa = False
+        self.servico_sessao.concluir_logout()
         self.ao_sair()

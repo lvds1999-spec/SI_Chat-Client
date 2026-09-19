@@ -39,6 +39,8 @@ class ServicoSessao:
     def logout(self):
         if self.cliente_socket.conectado:
             self.cliente_socket.enviar(criar_logout())
+
+    def concluir_logout(self):
         self.fechar()
 
     def definir_callback(self, callback):

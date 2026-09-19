@@ -14,6 +14,7 @@ class TelaLogin:
     def __init__(self, servico_sessao, janela=None):
         self.servico_sessao = servico_sessao
         self.ativa = True
+        self.eventos_pendentes = []
 
         self.janela = janela or tk.Tk()
         if janela is not None:
@@ -93,6 +94,12 @@ class TelaLogin:
     def processar_evento(self, evento):
         if not self.ativa:
             return
+
+        tipo = evento.get("evento", evento.get("tipo"))
+        if tipo not in (RESPOSTA_REGISTRO, RESPOSTA_LOGIN):
+            self.eventos_pendentes.append(evento)
+            return
+
         self.janela.after(0, self._exibir_resposta, evento)
 
     def _exibir_resposta(self, evento):
@@ -133,6 +140,10 @@ class TelaLogin:
             self.voltar_login
         )
         self.servico_sessao.definir_callback(tela_principal.processar_evento)
+        eventos_pendentes = self.eventos_pendentes
+        self.eventos_pendentes = []
+        for evento in eventos_pendentes:
+            tela_principal.processar_evento(evento)
 
     def voltar_login(self):
         novo_servico = type(self.servico_sessao)()
