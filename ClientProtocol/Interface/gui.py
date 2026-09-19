@@ -1,11 +1,6 @@
 import tkinter as tk
 
-from ClientProtocol.Rede.Protocolo.protocolo import (
-    LOGIN,
-    REGISTRO,
-    RESPOSTA_LOGIN,
-    RESPOSTA_REGISTRO,
-)
+from apresentacao.gui import GUI
 
 
 class GUI:

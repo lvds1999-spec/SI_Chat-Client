@@ -4,32 +4,24 @@ from pathlib import Path
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from ClientProtocol.Rede.client_socket import ClienteSocket
-from ClientProtocol.Rede.thread_recepcao import ThreadRecepcao
-from ClientProtocol.Interface.gui import GUI
+from apresentacao.gui import GUI
+from dominio.servico_sessao import ServicoSessao
 
 
 def main():
 
-    cliente_socket = ClienteSocket(
+    servico_sessao = ServicoSessao(
         host="127.0.0.1",
         porta=8000
     )
 
-    cliente_socket.conectar()
-
-    gui = GUI(cliente_socket)
-    thread_recepcao = ThreadRecepcao(
-        cliente_socket,
-        gui.processar_evento
-    )
-    thread_recepcao.start()
+    gui = GUI(servico_sessao)
+    servico_sessao.conectar(gui.processar_evento)
 
     try:
         gui.iniciar()
     finally:
-        thread_recepcao.parar()
-        cliente_socket.fechar()
+        servico_sessao.fechar()
 
 
 if __name__ == "__main__":
