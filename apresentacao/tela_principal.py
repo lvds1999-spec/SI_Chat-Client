@@ -126,14 +126,15 @@ class TelaPrincipal:
             )
         elif tipo == "resposta_adicionar_contato":
             if evento.get("sucesso"):
+                contato = evento.get("contato") or evento.get("usuario")
                 self.tela_contatos.adicionar(
-                    evento.get("contato"),
+                    contato,
                     evento.get("online", False)
                 )
             self.tela_conversa.definir_status(evento.get("mensagem", ""))
         elif tipo == "resposta_remover_contato":
             if evento.get("sucesso"):
-                contato = evento.get("contato")
+                contato = evento.get("contato") or evento.get("usuario")
                 self.tela_contatos.remover(contato)
                 if self.contato_selecionado == contato:
                     self.contato_selecionado = None

@@ -212,26 +212,18 @@ class TelaChat:
         tipo = evento.get("evento")
 
         if tipo == "lista_contatos":
-            contatos_recebidos = set()
             for contato in evento.get("contatos", []):
                 nome = contato.get("usuario")
                 if nome and nome != self.usuario:
-                    contatos_recebidos.add(nome)
                     self.contatos[nome] = contato.get("online", False)
                     self.conversas.setdefault(nome, [])
-
-            for nome in set(self.contatos) - contatos_recebidos:
-                self.contatos.pop(nome, None)
-                self.conversas.pop(nome, None)
-                if self.contato_selecionado == nome:
-                    self.contato_selecionado = None
 
             self.atualizar_lista_contatos()
             if not self.contato_selecionado:
                 self.titulo_conversa.config(text="Selecione um contato")
                 self.exibir_conversa()
         elif tipo == "resposta_adicionar_contato":
-            contato = evento.get("contato")
+            contato = evento.get("contato") or evento.get("usuario")
             if evento.get("sucesso"):
                 self.contatos[contato] = evento.get("online", False)
                 self.conversas.setdefault(contato, [])
@@ -244,7 +236,7 @@ class TelaChat:
                     text=evento.get("mensagem", "Contato não encontrado no servidor.")
                 )
         elif tipo == "resposta_remover_contato":
-            contato = evento.get("contato")
+            contato = evento.get("contato") or evento.get("usuario")
             if evento.get("sucesso"):
                 self.contatos.pop(contato, None)
                 self.conversas.pop(contato, None)

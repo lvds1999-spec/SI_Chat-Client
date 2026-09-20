@@ -17,11 +17,15 @@ class TelaContatos(tk.Frame):
         self.lista.bind("<<ListboxSelect>>", self._selecionar)
 
     def atualizar(self, contatos):
-        self.contatos = {
-            contato["usuario"]: contato.get("online", False)
-            for contato in contatos
-            if contato.get("usuario") != self.usuario
-        }
+        for contato in contatos:
+            if isinstance(contato, dict):
+                usuario = contato.get("usuario", contato.get("nome"))
+                online = contato.get("online", False)
+            else:
+                usuario = str(contato).strip()
+                online = False
+            if usuario and usuario != self.usuario:
+                self.contatos[usuario] = online
         self._renderizar()
 
     def atualizar_presenca(self, usuario, online):
