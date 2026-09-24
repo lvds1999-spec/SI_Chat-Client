@@ -6,6 +6,8 @@ RESPOSTA_REGISTRO = "resposta_registro"
 
 LOGIN = "login"
 RESPOSTA_LOGIN = "resposta_login"
+DESAFIO_LOGIN = "desafio_login"
+LOGIN_ASSINATURA = "login_assinatura"
 LOGOUT = "logout"
 RESPOSTA_LOGOUT = "resposta_logout"
 
@@ -46,12 +48,22 @@ def desserializar(dados):
     return json.loads(dados.decode("utf-8"))
 
 
-def criar_registro(usuario, senha):
-    return {
+def criar_registro(
+    usuario,
+    senha,
+    algoritmo_assinatura=None,
+    chave_publica=None,
+):
+    evento = {
         "evento": REGISTRO,
         "usuario": usuario,
         "senha": senha
     }
+    if algoritmo_assinatura is not None:
+        evento["algoritmo_assinatura"] = algoritmo_assinatura
+    if chave_publica is not None:
+        evento["chave_publica"] = chave_publica
+    return evento
 
 
 def criar_resposta_registro(sucesso, mensagem):
@@ -62,11 +74,29 @@ def criar_resposta_registro(sucesso, mensagem):
     }
 
 
-def criar_login(usuario, senha):
-    return {
+def criar_login(
+    usuario,
+    senha=None,
+    algoritmo_assinatura=None,
+    chave_publica=None,
+):
+    evento = {
         "evento": LOGIN,
         "usuario": usuario,
-        "senha": senha
+    }
+    if senha is not None:
+        evento["senha"] = senha
+    if algoritmo_assinatura is not None:
+        evento["algoritmo_assinatura"] = algoritmo_assinatura
+    if chave_publica is not None:
+        evento["chave_publica"] = chave_publica
+    return evento
+
+
+def criar_login_assinatura(assinatura):
+    return {
+        "evento": LOGIN_ASSINATURA,
+        "assinatura": assinatura,
     }
 
 

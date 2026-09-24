@@ -1,6 +1,7 @@
 import socket
 
 from infraestrutura.rede.protocolo import serializar
+from infraestrutura.rede.sessao_segura import SessaoSegura
 
 
 class ClienteSocket:
@@ -9,8 +10,9 @@ class ClienteSocket:
         self.host = host
         self.porta = porta
         self.socket = None
+        self.arquivo = None
+        self.sessao_segura = SessaoSegura()
         self.conectado = False
-        self._buffer_recebimento = b""
 
     def conectar(self):
         if self.conectado:
@@ -19,19 +21,23 @@ class ClienteSocket:
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             self.socket.connect((self.host, self.porta))
+            self.arquivo = self.socket.makefile("rwb")
+            self.sessao_segura.iniciar_cliente(self.arquivo)
         except Exception:
+            if self.arquivo:
+                self.arquivo.close()
             self.socket.close()
             self.socket = None
+            self.arquivo = None
             raise
 
-        self._buffer_recebimento = b""
         self.conectado = True
 
     def enviar(self, evento):
         if not self.conectado:
             raise ConnectionError("Cliente não está conectado.")
         try:
-            self.socket.sendall(serializar(evento))
+            self.sessao_segura.enviar(self.arquivo, serializar(evento))
         except OSError as erro:
             self.conectado = False
             raise ConnectionError("Não foi possível enviar a mensagem.") from erro
@@ -40,15 +46,11 @@ class ClienteSocket:
         if not self.conectado:
             raise ConnectionError("Cliente não está conectado.")
 
-        while b"\n" not in self._buffer_recebimento:
-            dados = self.socket.recv(4096)
-            if not dados:
-                self.conectado = False
-                raise ConnectionError("Servidor encerrou a conexão.")
-            self._buffer_recebimento += dados
-
-        linha, self._buffer_recebimento = self._buffer_recebimento.split(b"\n", 1)
-        return linha + b"\n"
+        try:
+            return self.sessao_segura.receber(self.arquivo)
+        except (ConnectionError, OSError):
+            self.conectado = False
+            raise
 
     def fechar(self):
         if self.socket:
@@ -57,8 +59,10 @@ class ClienteSocket:
             except OSError:
                 pass
             finally:
+                if self.arquivo:
+                    self.arquivo.close()
                 self.socket.close()
 
         self.socket = None
+        self.arquivo = None
         self.conectado = False
-        self._buffer_recebimento = b""

@@ -5,17 +5,20 @@ from infraestrutura.rede.protocolo import desserializar
 
 class ThreadRecepcao(threading.Thread):
 
-    def __init__(self, cliente_socket, callback):
+    def __init__(self, cliente_socket, callback, callback_erro=None):
         super().__init__(daemon=True)
         self.cliente_socket = cliente_socket
         self.callback = callback
+        self.callback_erro = callback_erro
         self._parar_evento = threading.Event()
 
     def run(self):
         while not self._parar_evento.is_set():
             try:
                 evento = desserializar(self.cliente_socket.receber())
-            except (ConnectionError, OSError):
+            except (ConnectionError, OSError) as erro:
+                if not self._parar_evento.is_set() and self.callback_erro:
+                    self.callback_erro(erro)
                 break
             except Exception as erro:
                 print(f"Erro na recepção: {erro}")

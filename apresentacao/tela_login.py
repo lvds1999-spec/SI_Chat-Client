@@ -96,6 +96,9 @@ class TelaLogin:
             return
 
         tipo = evento.get("evento", evento.get("tipo"))
+        if tipo == "erro_conexao":
+            self.janela.after(0, self._exibir_erro_conexao, evento)
+            return
         if tipo not in (RESPOSTA_REGISTRO, RESPOSTA_LOGIN):
             self.eventos_pendentes.append(evento)
             return
@@ -124,6 +127,13 @@ class TelaLogin:
             self.status.config(text=mensagem or "Credenciais inválidas.")
         elif tipo in (RESPOSTA_REGISTRO, RESPOSTA_LOGIN):
             self.status.config(text=mensagem or f"Evento recebido: {tipo}")
+
+    def _exibir_erro_conexao(self, evento):
+        if not self.ativa or not self.janela.winfo_exists():
+            return
+        self.status.config(
+            text=f"Conexão com o servidor encerrada: {evento.get('mensagem')}"
+        )
 
     def fechar(self):
         self.ativa = False
