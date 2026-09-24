@@ -36,13 +36,12 @@ class TelaConversa(tk.Frame):
         )
         self._renderizar()
 
-    def adicionar_mensagem(self, mensagem, recebida=False):
+    def adicionar_mensagem(self, mensagem, recebida=False, persistir=True):
         contato = mensagem.get("remetente") if recebida else mensagem.get("destinatario")
         if not contato:
             return
-        texto = mensagem.get("texto", "")
-        prefixo = mensagem.get("remetente") if recebida else "Você"
-        self.banco_local.salvar_mensagem(mensagem)
+        if persistir:
+            self.banco_local.salvar_mensagem(mensagem)
         self.mensagens.setdefault(contato, []).append(mensagem)
         if contato == self.destinatario:
             self._renderizar()
@@ -57,7 +56,7 @@ class TelaConversa(tk.Frame):
         if not texto:
             return "break"
         mensagem = self.servico_conversas.enviar_mensagem(self.destinatario, texto)
-        self.adicionar_mensagem(mensagem)
+        self.adicionar_mensagem(mensagem, persistir=False)
         self.campo.delete(0, tk.END)
         if self.ao_digitando:
             self.ao_digitando(False, self.destinatario)

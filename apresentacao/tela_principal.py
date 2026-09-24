@@ -5,6 +5,14 @@ from apresentacao.tela_contatos import TelaContatos
 from apresentacao.tela_conversa import TelaConversa
 from dominio.servico_conversas import ServicoConversas
 from infraestrutura.dados.banco_local import BancoLocal
+from infraestrutura.rede.protocolo import (
+    LISTA_CONTATOS,
+    MENSAGEM,
+    PRESENCA,
+    RESPOSTA_ADICIONAR_CONTATO,
+    RESPOSTA_LOGOUT,
+    RESPOSTA_REMOVER_CONTATO,
+)
 
 
 class TelaPrincipal:
@@ -127,18 +135,20 @@ class TelaPrincipal:
             return
         tipo = evento.get("evento")
 
-        if tipo == "lista_contatos":
+        if tipo == LISTA_CONTATOS:
             self.banco_local.upsert_contatos(evento.get("contatos", []))
             self._recarregar_contatos()
-        elif tipo == "presenca":
+        elif tipo == PRESENCA:
+            usuario = evento.get("usuario", evento.get("nome"))
+            online = evento.get("online", False)
             self.banco_local.atualizar_presenca(
-                evento.get("usuario"), evento.get("online", False)
+                usuario, online
             )
             self.tela_contatos.atualizar_presenca(
-                evento.get("usuario"),
-                evento.get("online", False)
+                usuario,
+                online
             )
-        elif tipo == "resposta_adicionar_contato":
+        elif tipo == RESPOSTA_ADICIONAR_CONTATO:
             if evento.get("sucesso"):
                 contato = evento.get("contato") or evento.get("usuario")
                 if isinstance(contato, dict):
@@ -148,7 +158,7 @@ class TelaPrincipal:
                     self.banco_local.adicionar_contato(contato)
                 self._recarregar_contatos()
             self.tela_conversa.definir_status(evento.get("mensagem", ""))
-        elif tipo == "resposta_remover_contato":
+        elif tipo == RESPOSTA_REMOVER_CONTATO:
             if evento.get("sucesso"):
                 contato = evento.get("contato") or evento.get("usuario")
                 if isinstance(contato, dict):
@@ -158,9 +168,9 @@ class TelaPrincipal:
                 if self.contato_selecionado == contato:
                     self.contato_selecionado = None
             self.tela_conversa.definir_status(evento.get("mensagem", ""))
-        elif tipo == "resposta_logout":
+        elif tipo == RESPOSTA_LOGOUT:
             self.concluir_logout()
-        elif tipo == "mensagem":
+        elif tipo == MENSAGEM:
             remetente = evento.get("remetente")
             self.banco_local.adicionar_contato({"usuario": remetente, "online": True})
             self._recarregar_contatos()
