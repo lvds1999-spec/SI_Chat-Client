@@ -10,6 +10,7 @@ from infraestrutura.rede.protocolo import (
     DIGITANDO_INICIO,
     LISTA_CONTATOS,
     MENSAGEM,
+    MUDANCA_PRESENCA,
     PRESENCA,
     RESPOSTA_ADICIONAR_CONTATO,
     RESPOSTA_LOGOUT,
@@ -140,7 +141,7 @@ class TelaPrincipal:
         if tipo == LISTA_CONTATOS:
             self.banco_local.upsert_contatos(evento.get("contatos", []))
             self._recarregar_contatos()
-        elif tipo == PRESENCA:
+        elif tipo in (PRESENCA, MUDANCA_PRESENCA, "mudanca_presenca"):
             usuario = evento.get("usuario", evento.get("nome"))
             online = evento.get("online", False)
             self.banco_local.atualizar_presenca(
@@ -150,6 +151,7 @@ class TelaPrincipal:
                 usuario,
                 online
             )
+            self.tela_conversa.atualizar_presenca(usuario, online)
         elif tipo == RESPOSTA_ADICIONAR_CONTATO:
             if evento.get("sucesso"):
                 contato = evento.get("contato") or evento.get("usuario")

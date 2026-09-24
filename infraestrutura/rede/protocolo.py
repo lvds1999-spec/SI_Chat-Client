@@ -25,6 +25,7 @@ DIGITANDO_FIM = "digitando_fim"
 AVISO_DIGITANDO = "aviso_digitando"
 
 PRESENCA = "presenca"
+MUDANCA_PRESENCA = "MUDANCA_PRESENCA"
 
 FILA_OFFLINE = "fila_offline"
 

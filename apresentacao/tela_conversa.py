@@ -37,12 +37,20 @@ class TelaConversa(tk.Frame):
         self._encerrar_digitacao_local()
         self._limpar_digitando_remoto()
         self.destinatario = contato
-        estado = "online" if online else "offline"
-        self.titulo.config(text=f"{contato} - {estado}")
+        self._atualizar_titulo(online)
         self.mensagens[contato] = self.banco_local.listar_mensagens(
             contato, self.usuario
         )
         self._renderizar()
+
+    def atualizar_presenca(self, usuario, online):
+        if usuario == self.destinatario:
+            self._atualizar_titulo(online)
+
+    def _atualizar_titulo(self, online):
+        if self.destinatario:
+            estado = "online" if online else "offline"
+            self.titulo.config(text=f"{self.destinatario} - {estado}")
 
     def adicionar_mensagem(self, mensagem, recebida=False, persistir=True):
         contato = mensagem.get("remetente") if recebida else mensagem.get("destinatario")
