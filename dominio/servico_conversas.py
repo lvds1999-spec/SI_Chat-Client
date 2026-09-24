@@ -20,17 +20,19 @@ class ServicoConversas:
         self.banco_local.salvar_mensagem(evento)
         self.banco_local.enfileirar_mensagem(evento)
         try:
-            self.servico_sessao.enviar_evento(evento)
+            enviado = self.servico_sessao.enviar_mensagem_segura(evento)
         except ConnectionError:
             return evento
-        self.banco_local.remover_mensagem_pendente(evento)
+        if enviado:
+            self.banco_local.remover_mensagem_pendente(evento)
         return evento
 
     def reenviar_pendentes(self):
         for mensagem in self.banco_local.listar_mensagens_pendentes(self.remetente):
             evento = {"evento": MENSAGEM, **mensagem}
             try:
-                self.servico_sessao.enviar_evento(evento)
+                enviado = self.servico_sessao.enviar_mensagem_segura(evento)
             except ConnectionError:
                 break
-            self.banco_local.remover_mensagem_pendente(mensagem)
+            if enviado:
+                self.banco_local.remover_mensagem_pendente(mensagem)

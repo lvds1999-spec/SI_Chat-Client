@@ -1,19 +1,29 @@
 import base64
+import json
 import threading
 import time
 
 from infraestrutura.rede.client_socket import ClienteSocket
 from infraestrutura.rede.thread_recepcao import ThreadRecepcao
 from infraestrutura.seguranca.identidade import IdentidadeUsuario
+from infraestrutura.rede.sessao_contatos import (
+    SessaoContato,
+    TIPO_HANDSHAKE,
+    TIPO_MENSAGEM,
+)
 from infraestrutura.rede.protocolo import (
     DESAFIO_LOGIN,
     LOGIN,
     REGISTRO,
     RESPOSTA_LOGIN,
     RESPOSTA_REGISTRO,
+    MENSAGEM,
+    RESPOSTA_CHAVE_PUBLICA,
     criar_login,
     criar_login_assinatura,
     criar_registro,
+    criar_handshake_concluido,
+    criar_solicitacao_chave_publica,
     criar_adicionar_contato,
     criar_remover_contato,
     criar_logout,
@@ -30,6 +40,10 @@ class ServicoSessao:
         self._credenciais = None
         self._fechando = False
         self._reconexao_em_andamento = False
+        self.sessoes_contatos = {}
+        self.chaves_contatos = {}
+        self._chaves_solicitadas = set()
+        self._mensagens_pendentes_contato = {}
 
     def conectar(self, callback):
         self.callback = callback
@@ -98,6 +112,25 @@ class ServicoSessao:
 
     def enviar_evento(self, evento):
         self.cliente_socket.enviar(evento)
+
+    def enviar_mensagem_segura(self, evento):
+        destinatario = evento.get("destinatario")
+        sessao = self.sessoes_contatos.get(destinatario)
+        if sessao and sessao.estabelecida:
+            protegido = dict(evento)
+            protegido.pop("texto", None)
+            protegido["pacote"] = sessao.cifrar_mensagem(evento.get("texto", ""))
+            self.enviar_evento(protegido)
+            return True
+
+        self._mensagens_pendentes_contato.setdefault(destinatario, []).append(evento)
+        chave = self.chaves_contatos.get(destinatario)
+        if chave:
+            self._iniciar_handshake_contato(destinatario, chave)
+        elif destinatario not in self._chaves_solicitadas:
+            self._chaves_solicitadas.add(destinatario)
+            self.enviar_evento(criar_solicitacao_chave_publica(destinatario))
+        return False
 
     def fechar(self):
         self._fechando = True
@@ -210,4 +243,113 @@ class ServicoSessao:
                 })
             return
 
+        if evento.get("evento") == RESPOSTA_CHAVE_PUBLICA:
+            self._processar_resposta_chave(evento)
+            return
+
+        if evento.get("evento") == MENSAGEM and evento.get("pacote"):
+            if self._processar_pacote_contato(evento):
+                return
+
         self.callback(evento)
+
+    def _processar_resposta_chave(self, evento):
+        usuario = evento.get("usuario")
+        chave = evento.get("chave_publica")
+        if evento.get("sucesso") and usuario and chave:
+            self.chaves_contatos[usuario] = chave
+            self._chaves_solicitadas.discard(usuario)
+            self._iniciar_handshake_contato(usuario, chave)
+        self.callback(evento)
+
+    def _iniciar_handshake_contato(self, contato, chave_publica):
+        if contato in self.sessoes_contatos:
+            return
+        sessao = SessaoContato(
+            self.identidade.usuario,
+            contato,
+            self.identidade,
+            chave_publica,
+        )
+        self.sessoes_contatos[contato] = sessao
+        self.enviar_evento(criar_handshake_concluido(contato))
+        self.enviar_evento({
+            "evento": MENSAGEM,
+            "remetente": self.identidade.usuario,
+            "destinatario": contato,
+            "pacote": sessao.criar_convite(),
+        })
+
+    def _processar_pacote_contato(self, evento):
+        remetente = evento.get("remetente")
+        try:
+            pacote = json.loads(evento["pacote"])
+        except (TypeError, ValueError, json.JSONDecodeError):
+            return False
+        tipo = pacote.get("tipo")
+        if tipo not in (TIPO_HANDSHAKE, TIPO_MENSAGEM):
+            return False
+
+        if tipo == TIPO_HANDSHAKE:
+            return self._processar_handshake_contato(remetente, pacote)
+
+        sessao = self.sessoes_contatos.get(remetente)
+        if not sessao or not sessao.estabelecida:
+            self.callback({
+                "evento": "erro",
+                "mensagem": "Mensagem recebida sem sessão segura com o contato.",
+            })
+            return True
+        try:
+            evento["texto"] = sessao.decifrar_mensagem(pacote)
+        except (ValueError, TypeError):
+            self.callback({
+                "evento": "erro",
+                "mensagem": "Não foi possível decifrar a mensagem do contato.",
+            })
+            return True
+        return False
+
+    def _processar_handshake_contato(self, remetente, pacote):
+        chave_publica = self.chaves_contatos.get(
+            remetente,
+            pacote.get("chave_publica_assinatura"),
+        )
+        if not chave_publica or not self.identidade:
+            return True
+        sessao = self.sessoes_contatos.get(remetente)
+        try:
+            if pacote.get("etapa") == "convite":
+                sessao = SessaoContato(
+                    self.identidade.usuario,
+                    remetente,
+                    self.identidade,
+                    chave_publica,
+                )
+                self.sessoes_contatos[remetente] = sessao
+                resposta = sessao.aceitar_convite(pacote)
+                self.enviar_evento({
+                    "evento": MENSAGEM,
+                    "remetente": self.identidade.usuario,
+                    "destinatario": remetente,
+                    "pacote": resposta,
+                })
+                return True
+            if pacote.get("etapa") == "resposta" and sessao:
+                sessao.concluir_convite(pacote)
+                self._enviar_mensagens_pendentes(remetente, sessao)
+                return True
+        except (ValueError, TypeError, KeyError):
+            self.callback({
+                "evento": "erro",
+                "mensagem": "Falha na autenticação do contato.",
+            })
+        return True
+
+    def _enviar_mensagens_pendentes(self, contato, sessao):
+        pendentes = self._mensagens_pendentes_contato.pop(contato, [])
+        for evento in pendentes:
+            protegido = dict(evento)
+            protegido.pop("texto", None)
+            protegido["pacote"] = sessao.cifrar_mensagem(evento.get("texto", ""))
+            self.enviar_evento(protegido)

@@ -8,6 +8,8 @@ LOGIN = "login"
 RESPOSTA_LOGIN = "resposta_login"
 DESAFIO_LOGIN = "desafio_login"
 LOGIN_ASSINATURA = "login_assinatura"
+SOLICITAR_CHAVE_PUBLICA = "solicitar_chave_publica"
+RESPOSTA_CHAVE_PUBLICA = "resposta_chave_publica"
 LOGOUT = "logout"
 RESPOSTA_LOGOUT = "resposta_logout"
 
@@ -215,4 +217,18 @@ def criar_resposta_logout(mensagem):
     return {
         "evento": RESPOSTA_LOGOUT,
         "mensagem": mensagem
+    }
+
+
+def criar_solicitacao_chave_publica(usuario):
+    return {
+        "evento": SOLICITAR_CHAVE_PUBLICA,
+        "usuario": usuario,
+    }
+
+
+def criar_handshake_concluido(usuario):
+    return {
+        "evento": "handshake_concluido",
+        "usuario": usuario,
     }

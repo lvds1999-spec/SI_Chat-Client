@@ -1,7 +1,7 @@
 import socket
 
 from infraestrutura.rede.protocolo import serializar
-from infraestrutura.rede.sessao_segura import SessaoSegura
+from infraestrutura.rede.sessao_canal import SessaoCanal
 
 
 class ClienteSocket:
@@ -11,7 +11,7 @@ class ClienteSocket:
         self.porta = porta
         self.socket = None
         self.arquivo = None
-        self.sessao_segura = SessaoSegura()
+        self.sessao_segura = SessaoCanal()
         self.conectado = False
 
     def conectar(self):
