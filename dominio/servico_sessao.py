@@ -1,4 +1,6 @@
 import base64
+import threading
+import time
 
 from infraestrutura.rede.client_socket import ClienteSocket
 from infraestrutura.rede.thread_recepcao import ThreadRecepcao
@@ -25,23 +27,41 @@ class ServicoSessao:
         self.thread_recepcao = None
         self.callback = None
         self.identidade = None
+        self._credenciais = None
+        self._fechando = False
+        self._reconexao_em_andamento = False
 
     def conectar(self, callback):
         self.callback = callback
-        self.cliente_socket.conectar()
+        self._fechando = False
+        try:
+            self.cliente_socket.conectar()
+        except (ConnectionError, OSError) as erro:
+            self._notificar({
+                "evento": "erro_conexao",
+                "mensagem": str(erro),
+            })
+            self._iniciar_reconexao()
+            return
+
+        self._iniciar_thread_recepcao()
+        self._notificar({
+            "evento": "estado_conexao",
+            "estado": "conectado",
+        })
+
+    def _iniciar_thread_recepcao(self):
         self.thread_recepcao = ThreadRecepcao(
             self.cliente_socket,
             self._processar_evento,
-            lambda erro: self.callback({
-                "evento": "erro_conexao",
-                "mensagem": str(erro)
-            })
+            self._tratar_queda,
         )
         self.thread_recepcao.start()
 
     def registrar(self, usuario, senha):
         self.identidade = IdentidadeUsuario(usuario)
-        self.cliente_socket.enviar(criar_registro(
+        self._credenciais = (REGISTRO, usuario, senha)
+        self._enviar_autenticacao(criar_registro(
             usuario,
             senha,
             self.identidade.algoritmo,
@@ -50,7 +70,8 @@ class ServicoSessao:
 
     def login(self, usuario, senha):
         self.identidade = IdentidadeUsuario(usuario)
-        self.cliente_socket.enviar(criar_login(
+        self._credenciais = (LOGIN, usuario, senha)
+        self._enviar_autenticacao(criar_login(
             usuario,
             senha,
             self.identidade.algoritmo,
@@ -79,9 +100,94 @@ class ServicoSessao:
         self.cliente_socket.enviar(evento)
 
     def fechar(self):
+        self._fechando = True
         if self.thread_recepcao:
             self.thread_recepcao.parar()
         self.cliente_socket.fechar()
+
+    def _enviar_autenticacao(self, evento):
+        try:
+            self.cliente_socket.enviar(evento)
+        except (ConnectionError, OSError):
+            self._tratar_queda(ConnectionError("Não foi possível enviar a autenticação."))
+            raise
+
+    def _tratar_queda(self, erro):
+        if self._fechando:
+            return
+        self._notificar({
+            "evento": "estado_conexao",
+            "estado": "desconectado",
+        })
+        self._notificar({
+            "evento": "erro_conexao",
+            "mensagem": str(erro),
+        })
+        self._iniciar_reconexao()
+
+    def _iniciar_reconexao(self):
+        if self._fechando or self._reconexao_em_andamento:
+            return
+        self._reconexao_em_andamento = True
+        threading.Thread(target=self._reconectar, daemon=True).start()
+
+    def _reconectar(self):
+        reconectado = False
+        try:
+            for espera in (1, 2, 4):
+                if self._fechando:
+                    return
+                self._notificar({
+                    "evento": "estado_conexao",
+                    "estado": "reconectando",
+                    "tentativa_em": espera,
+                })
+                time.sleep(espera)
+                try:
+                    self.cliente_socket.conectar()
+                    self._iniciar_thread_recepcao()
+                    self._notificar({
+                        "evento": "estado_conexao",
+                        "estado": "conectado",
+                    })
+                    reconectado = True
+                    self._reenviar_autenticacao()
+                    return
+                except (ConnectionError, OSError):
+                    self.cliente_socket.fechar()
+        finally:
+            self._reconexao_em_andamento = False
+            if not reconectado and not self._fechando:
+                self._notificar({
+                    "evento": "estado_conexao",
+                    "estado": "desconectado",
+                })
+
+    def _reenviar_autenticacao(self):
+        if not self._credenciais:
+            return
+        tipo, usuario, senha = self._credenciais
+        if not self.identidade:
+            self.identidade = IdentidadeUsuario(usuario)
+        if tipo == LOGIN:
+            evento = criar_login(
+                usuario,
+                senha,
+                self.identidade.algoritmo,
+                self.identidade.chave_publica,
+            )
+        else:
+            evento = criar_registro(
+                usuario,
+                senha,
+                self.identidade.algoritmo,
+                self.identidade.chave_publica,
+            )
+        self.cliente_socket.enviar(evento)
+
+    def _notificar(self, evento):
+        if self.callback:
+            self.callback(evento)
 
     def _processar_evento(self, evento):
         if evento.get("evento") == DESAFIO_LOGIN:

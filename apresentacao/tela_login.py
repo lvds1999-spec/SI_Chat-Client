@@ -96,8 +96,8 @@ class TelaLogin:
             return
 
         tipo = evento.get("evento", evento.get("tipo"))
-        if tipo == "erro_conexao":
-            self.janela.after(0, self._exibir_erro_conexao, evento)
+        if tipo in ("erro_conexao", "estado_conexao", "erro"):
+            self.janela.after(0, self._exibir_estado_sessao, evento)
             return
         if tipo not in (RESPOSTA_REGISTRO, RESPOSTA_LOGIN):
             self.eventos_pendentes.append(evento)
@@ -128,12 +128,24 @@ class TelaLogin:
         elif tipo in (RESPOSTA_REGISTRO, RESPOSTA_LOGIN):
             self.status.config(text=mensagem or f"Evento recebido: {tipo}")
 
-    def _exibir_erro_conexao(self, evento):
+    def _exibir_estado_sessao(self, evento):
         if not self.ativa or not self.janela.winfo_exists():
             return
-        self.status.config(
-            text=f"Conexão com o servidor encerrada: {evento.get('mensagem')}"
-        )
+        tipo = evento.get("evento")
+        if tipo == "estado_conexao":
+            estado = evento.get("estado")
+            mensagens = {
+                "conectado": "Conectado ao servidor.",
+                "desconectado": "Desconectado do servidor.",
+                "reconectando": "Desconectado. Tentando reconectar...",
+            }
+            self.status.config(text=mensagens.get(estado, "Estado da conexão atualizado."))
+        elif tipo == "erro":
+            self.status.config(text=evento.get("mensagem", "Erro retornado pelo servidor."))
+        else:
+            self.status.config(
+                text=f"Conexão com o servidor encerrada: {evento.get('mensagem')}"
+            )
 
     def fechar(self):
         self.ativa = False

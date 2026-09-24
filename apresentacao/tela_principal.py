@@ -138,7 +138,15 @@ class TelaPrincipal:
             return
         tipo = evento.get("evento")
 
-        if tipo == LISTA_CONTATOS:
+        if tipo in ("erro_conexao", "estado_conexao", "erro"):
+            if tipo == "estado_conexao" and evento.get("estado") == "reconectando":
+                mensagem = "Desconectado. Tentando reconectar..."
+            elif tipo == "estado_conexao" and evento.get("estado") == "conectado":
+                mensagem = "Conectado ao servidor."
+            else:
+                mensagem = evento.get("mensagem", "Desconectado do servidor.")
+            self.tela_conversa.definir_status(mensagem)
+        elif tipo == LISTA_CONTATOS:
             self.banco_local.upsert_contatos(evento.get("contatos", []))
             self._recarregar_contatos()
         elif tipo in (PRESENCA, MUDANCA_PRESENCA, "mudanca_presenca"):
