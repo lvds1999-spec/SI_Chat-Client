@@ -4,6 +4,7 @@ from tkinter import messagebox
 from apresentacao.tela_contatos import TelaContatos
 from apresentacao.tela_conversa import TelaConversa
 from dominio.servico_conversas import ServicoConversas
+from infraestrutura.dados.banco_local import BancoLocal
 
 
 class TelaPrincipal:
@@ -18,6 +19,7 @@ class TelaPrincipal:
         self.contato_selecionado = None
         self.contatos = {}
         self.deslogando = False
+        self.banco_local = BancoLocal(usuario)
 
         self.janela.title(f"Chat - {usuario}")
         self.janela.geometry("760x500")
@@ -49,6 +51,7 @@ class TelaPrincipal:
             self.selecionar_contato
         )
         self.tela_contatos.pack(fill=tk.BOTH, expand=True)
+        self.tela_contatos.atualizar(self.banco_local.listar_contatos())
         tk.Button(
             coluna,
             text="Excluir selecionado",
@@ -62,8 +65,9 @@ class TelaPrincipal:
 
         self.tela_conversa = TelaConversa(
             principal,
-            ServicoConversas(self.servico_sessao, self.usuario),
+            ServicoConversas(self.servico_sessao, self.usuario, self.banco_local),
             self.usuario,
+            self.banco_local,
             self.informar_digitacao
         )
         self.tela_conversa.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
@@ -118,8 +122,12 @@ class TelaPrincipal:
         tipo = evento.get("evento")
 
         if tipo == "lista_contatos":
+            self.banco_local.upsert_contatos(evento.get("contatos", []))
             self.tela_contatos.atualizar(evento.get("contatos", []))
         elif tipo == "presenca":
+            self.banco_local.atualizar_presenca(
+                evento.get("usuario"), evento.get("online", False)
+            )
             self.tela_contatos.atualizar_presenca(
                 evento.get("usuario"),
                 evento.get("online", False)
@@ -127,6 +135,9 @@ class TelaPrincipal:
         elif tipo == "resposta_adicionar_contato":
             if evento.get("sucesso"):
                 contato = evento.get("contato") or evento.get("usuario")
+                if isinstance(contato, dict):
+                    self.banco_local.upsert_contatos([contato])
+                    contato = contato.get("usuario", contato.get("nome"))
                 self.tela_contatos.adicionar(
                     contato,
                     evento.get("online", False)
@@ -135,6 +146,9 @@ class TelaPrincipal:
         elif tipo == "resposta_remover_contato":
             if evento.get("sucesso"):
                 contato = evento.get("contato") or evento.get("usuario")
+                if isinstance(contato, dict):
+                    contato = contato.get("usuario", contato.get("nome"))
+                self.banco_local.remover_contato(contato)
                 self.tela_contatos.remover(contato)
                 if self.contato_selecionado == contato:
                     self.contato_selecionado = None
@@ -165,6 +179,7 @@ class TelaPrincipal:
     def fechar(self):
         self.ativa = False
         self.servico_sessao.fechar()
+        self.banco_local.fechar()
         self.janela.destroy()
 
     def sair(self):
@@ -177,4 +192,5 @@ class TelaPrincipal:
     def concluir_logout(self):
         self.ativa = False
         self.servico_sessao.concluir_logout()
+        self.banco_local.fechar()
         self.ao_sair()

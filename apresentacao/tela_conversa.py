@@ -3,10 +3,11 @@ import tkinter as tk
 
 class TelaConversa(tk.Frame):
 
-    def __init__(self, parent, servico_conversas, usuario, ao_digitando=None):
+    def __init__(self, parent, servico_conversas, usuario, banco_local, ao_digitando=None):
         super().__init__(parent)
         self.servico_conversas = servico_conversas
         self.usuario = usuario
+        self.banco_local = banco_local
         self.destinatario = None
         self.ao_digitando = ao_digitando
         self.mensagens = {}
@@ -30,6 +31,9 @@ class TelaConversa(tk.Frame):
         self.destinatario = contato
         estado = "online" if online else "offline"
         self.titulo.config(text=f"{contato} - {estado}")
+        self.mensagens[contato] = self.banco_local.listar_mensagens(
+            contato, self.usuario
+        )
         self._renderizar()
 
     def adicionar_mensagem(self, mensagem, recebida=False):
@@ -38,7 +42,8 @@ class TelaConversa(tk.Frame):
             return
         texto = mensagem.get("texto", "")
         prefixo = mensagem.get("remetente") if recebida else "Você"
-        self.mensagens.setdefault(contato, []).append(f"{prefixo}: {texto}")
+        self.banco_local.salvar_mensagem(mensagem)
+        self.mensagens.setdefault(contato, []).append(mensagem)
         if contato == self.destinatario:
             self._renderizar()
 
@@ -66,6 +71,9 @@ class TelaConversa(tk.Frame):
         self.historico.config(state=tk.NORMAL)
         self.historico.delete("1.0", tk.END)
         for mensagem in self.mensagens.get(self.destinatario, []):
-            self.historico.insert(tk.END, f"{mensagem}\n")
+            prefixo = mensagem.get("remetente")
+            if prefixo == self.usuario:
+                prefixo = "Você"
+            self.historico.insert(tk.END, f"{prefixo}: {mensagem.get('texto', '')}\n")
         self.historico.config(state=tk.DISABLED)
         self.historico.see(tk.END)
