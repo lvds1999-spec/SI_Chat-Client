@@ -6,6 +6,8 @@ from apresentacao.tela_conversa import TelaConversa
 from dominio.servico_conversas import ServicoConversas
 from infraestrutura.dados.banco_local import BancoLocal
 from infraestrutura.rede.protocolo import (
+    DIGITANDO_FIM,
+    DIGITANDO_INICIO,
     LISTA_CONTATOS,
     MENSAGEM,
     PRESENCA,
@@ -114,13 +116,13 @@ class TelaPrincipal:
     def informar_digitacao(self, digitando, destinatario):
         if digitando and not self.digitando_enviado:
             self.servico_sessao.enviar_evento({
-                "evento": "digitando_inicio",
+                "evento": DIGITANDO_INICIO,
                 "destinatario": destinatario
             })
             self.digitando_enviado = True
         elif not digitando and self.digitando_enviado:
             self.servico_sessao.enviar_evento({
-                "evento": "digitando_fim",
+                "evento": DIGITANDO_FIM,
                 "destinatario": destinatario
             })
             self.digitando_enviado = False
@@ -179,10 +181,16 @@ class TelaPrincipal:
                 self.tela_conversa.definir_status(
                     f"Nova mensagem de {remetente}."
                 )
+        elif tipo == DIGITANDO_INICIO:
+            self.tela_conversa.exibir_digitando(evento.get("remetente"))
+        elif tipo == DIGITANDO_FIM:
+            self.tela_conversa.remover_digitando(evento.get("remetente"))
         elif tipo == "aviso_digitando":
-            if evento.get("remetente") == self.contato_selecionado:
-                texto = "está digitando..." if evento.get("digitando") else ""
-                self.tela_conversa.definir_status(texto)
+            remetente = evento.get("remetente")
+            if evento.get("digitando"):
+                self.tela_conversa.exibir_digitando(remetente)
+            else:
+                self.tela_conversa.remover_digitando(remetente)
 
     def fechar(self):
         self.ativa = False

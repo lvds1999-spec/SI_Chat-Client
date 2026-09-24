@@ -3,6 +3,8 @@ import tkinter as tk
 
 class TelaConversa(tk.Frame):
 
+    TEMPO_LIMITE_DIGITANDO_MS = 2000
+
     def __init__(self, parent, servico_conversas, usuario, banco_local, ao_digitando=None):
         super().__init__(parent)
         self.servico_conversas = servico_conversas
@@ -11,6 +13,10 @@ class TelaConversa(tk.Frame):
         self.destinatario = None
         self.ao_digitando = ao_digitando
         self.mensagens = {}
+        self._digitando_local = False
+        self._fim_digitando_job = None
+        self._digitando_remoto = None
+        self._limpar_digitando_job = None
 
         self.titulo = tk.Label(self, text="Selecione um contato", anchor="w")
         self.titulo.pack(fill=tk.X)
@@ -28,6 +34,8 @@ class TelaConversa(tk.Frame):
         tk.Button(envio, text="Enviar", command=self.enviar).pack(side=tk.RIGHT, padx=(5, 0))
 
     def selecionar(self, contato, online):
+        self._encerrar_digitacao_local()
+        self._limpar_digitando_remoto()
         self.destinatario = contato
         estado = "online" if online else "offline"
         self.titulo.config(text=f"{contato} - {estado}")
@@ -49,6 +57,21 @@ class TelaConversa(tk.Frame):
     def definir_status(self, texto):
         self.status.config(text=texto)
 
+    def exibir_digitando(self, usuario):
+        if usuario != self.destinatario:
+            return
+        self._cancelar_limpeza_digitando()
+        self._digitando_remoto = usuario
+        self.status.config(text=f"{usuario} está digitando...")
+        self._limpar_digitando_job = self.after(
+            self.TEMPO_LIMITE_DIGITANDO_MS,
+            self._limpar_digitando_remoto,
+        )
+
+    def remover_digitando(self, usuario=None):
+        if usuario is None or usuario == self._digitando_remoto:
+            self._limpar_digitando_remoto()
+
     def enviar(self, _evento=None):
         if not self.destinatario:
             return "break"
@@ -58,13 +81,46 @@ class TelaConversa(tk.Frame):
         mensagem = self.servico_conversas.enviar_mensagem(self.destinatario, texto)
         self.adicionar_mensagem(mensagem, persistir=False)
         self.campo.delete(0, tk.END)
-        if self.ao_digitando:
-            self.ao_digitando(False, self.destinatario)
+        self._encerrar_digitacao_local()
         return "break"
 
     def _tecla(self, _evento=None):
-        if self.ao_digitando and self.destinatario:
-            self.ao_digitando(bool(self.campo.get()), self.destinatario)
+        if not self.ao_digitando or not self.destinatario:
+            return
+        if self.campo.get():
+            if not self._digitando_local:
+                self._digitando_local = True
+                self.ao_digitando(True, self.destinatario)
+            self._agendar_fim_digitando()
+        else:
+            self._encerrar_digitacao_local()
+
+    def _agendar_fim_digitando(self):
+        if self._fim_digitando_job:
+            self.after_cancel(self._fim_digitando_job)
+        self._fim_digitando_job = self.after(
+            self.TEMPO_LIMITE_DIGITANDO_MS,
+            self._encerrar_digitacao_local,
+        )
+
+    def _encerrar_digitacao_local(self):
+        if self._fim_digitando_job:
+            self.after_cancel(self._fim_digitando_job)
+            self._fim_digitando_job = None
+        if self._digitando_local and self.ao_digitando and self.destinatario:
+            self.ao_digitando(False, self.destinatario)
+        self._digitando_local = False
+
+    def _cancelar_limpeza_digitando(self):
+        if self._limpar_digitando_job:
+            self.after_cancel(self._limpar_digitando_job)
+            self._limpar_digitando_job = None
+
+    def _limpar_digitando_remoto(self):
+        self._cancelar_limpeza_digitando()
+        if self._digitando_remoto:
+            self._digitando_remoto = None
+            self.status.config(text="")
 
     def _renderizar(self):
         self.historico.config(state=tk.NORMAL)
