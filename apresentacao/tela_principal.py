@@ -20,7 +20,7 @@ from infraestrutura.rede.protocolo import (
 
 class TelaPrincipal:
 
-    def __init__(self, servico_sessao, usuario, janela, ao_sair):
+    def __init__(self, servico_sessao, usuario, janela, ao_sair, senha=None):
         self.servico_sessao = servico_sessao
         self.usuario = usuario
         self.janela = janela
@@ -30,7 +30,7 @@ class TelaPrincipal:
         self.contato_selecionado = None
         self.contatos = {}
         self.deslogando = False
-        self.banco_local = BancoLocal(usuario)
+        self.banco_local = BancoLocal(usuario, senha=senha)
 
         self.janela.title(f"Chat - {usuario}")
         self.janela.geometry("760x500")

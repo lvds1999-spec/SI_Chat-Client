@@ -159,7 +159,8 @@ class TelaLogin:
             self.servico_sessao,
             usuario,
             self.janela,
-            self.voltar_login
+            self.voltar_login,
+            senha=self.senha.get(),
         )
         self.servico_sessao.definir_callback(tela_principal.processar_evento)
         tela_principal.servico_conversas.reenviar_pendentes()
