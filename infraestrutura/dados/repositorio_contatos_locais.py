@@ -16,6 +16,13 @@ class RepositorioContatosLocais:
             )
             """
         )
+        self.conexao.execute(
+            """
+            CREATE TABLE IF NOT EXISTS contatos_excluidos (
+                usuario TEXT PRIMARY KEY
+            )
+            """
+        )
 
     def upsert(self, contatos):
         for contato in contatos:
@@ -24,18 +31,38 @@ class RepositorioContatosLocais:
             usuario = contato.get("usuario", contato.get("nome"))
             if not usuario:
                 continue
+            if self.conexao.execute(
+                "SELECT 1 FROM contatos_excluidos WHERE usuario = ?",
+                (usuario,)
+            ).fetchone():
+                continue
             contato_id = contato.get("id", usuario)
-            self.conexao.execute(
-                """
-                INSERT INTO contatos (id, usuario, online)
-                VALUES (?, ?, ?)
-                ON CONFLICT(id) DO UPDATE SET
-                    usuario = excluded.usuario,
-                    online = excluded.online
-                """,
-                (str(contato_id), usuario, int(bool(contato.get("online", False))))
-            )
+            existente = self.conexao.execute(
+                "SELECT id FROM contatos WHERE usuario = ?", (usuario,)
+            ).fetchone()
+            if existente:
+                self.conexao.execute(
+                    "UPDATE contatos SET online = ? WHERE usuario = ?",
+                    (int(bool(contato.get("online", False))), usuario)
+                )
+            else:
+                self.conexao.execute(
+                    """
+                    INSERT OR IGNORE INTO contatos (id, usuario, online)
+                    VALUES (?, ?, ?)
+                    """,
+                    (str(contato_id), usuario, int(bool(contato.get("online", False))))
+                )
         self.conexao.commit()
+
+    def adicionar(self, contato):
+        usuario = contato.get("usuario", contato.get("nome"))
+        if not usuario:
+            return
+        self.conexao.execute(
+            "DELETE FROM contatos_excluidos WHERE usuario = ?", (usuario,)
+        )
+        self.upsert([contato])
 
     def listar(self):
         return [dict(row) for row in self.conexao.execute(
@@ -50,5 +77,9 @@ class RepositorioContatosLocais:
         self.conexao.commit()
 
     def remover(self, usuario):
+        self.conexao.execute(
+            "INSERT OR IGNORE INTO contatos_excluidos (usuario) VALUES (?)",
+            (usuario,)
+        )
         self.conexao.execute("DELETE FROM contatos WHERE usuario = ?", (usuario,))
         self.conexao.commit()

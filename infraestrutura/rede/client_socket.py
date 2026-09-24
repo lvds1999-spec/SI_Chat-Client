@@ -30,7 +30,11 @@ class ClienteSocket:
     def enviar(self, evento):
         if not self.conectado:
             raise ConnectionError("Cliente não está conectado.")
-        self.socket.sendall(serializar(evento))
+        try:
+            self.socket.sendall(serializar(evento))
+        except OSError as erro:
+            self.conectado = False
+            raise ConnectionError("Não foi possível enviar a mensagem.") from erro
 
     def receber(self):
         if not self.conectado:

@@ -30,6 +30,11 @@ class BancoLocal:
     def upsert_contatos(self, contatos):
         self.repositorio_contatos.upsert(contatos)
 
+    def adicionar_contato(self, contato):
+        if not isinstance(contato, dict):
+            contato = {"usuario": str(contato).strip()}
+        self.repositorio_contatos.adicionar(contato)
+
     def listar_contatos(self):
         return self.repositorio_contatos.listar()
 
@@ -44,6 +49,15 @@ class BancoLocal:
 
     def listar_mensagens(self, contato, usuario):
         return self.repositorio_historico.listar(contato, usuario)
+
+    def enfileirar_mensagem(self, mensagem):
+        self.repositorio_historico.enfileirar(mensagem)
+
+    def listar_mensagens_pendentes(self, usuario):
+        return self.repositorio_historico.listar_pendentes(usuario)
+
+    def remover_mensagem_pendente(self, mensagem):
+        self.repositorio_historico.remover_pendente(mensagem)
 
     def fechar(self):
         self.conexao.close()

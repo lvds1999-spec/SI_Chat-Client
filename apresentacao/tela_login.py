@@ -140,6 +140,7 @@ class TelaLogin:
             self.voltar_login
         )
         self.servico_sessao.definir_callback(tela_principal.processar_evento)
+        tela_principal.servico_conversas.reenviar_pendentes()
         eventos_pendentes = self.eventos_pendentes
         self.eventos_pendentes = []
         for evento in eventos_pendentes:

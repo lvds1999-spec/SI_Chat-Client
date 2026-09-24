@@ -63,9 +63,12 @@ class TelaPrincipal:
             command=self.sair
         ).pack(fill=tk.X, pady=(8, 0))
 
+        self.servico_conversas = ServicoConversas(
+            self.servico_sessao, self.usuario, self.banco_local
+        )
         self.tela_conversa = TelaConversa(
             principal,
-            ServicoConversas(self.servico_sessao, self.usuario, self.banco_local),
+            self.servico_conversas,
             self.usuario,
             self.banco_local,
             self.informar_digitacao
@@ -123,7 +126,7 @@ class TelaPrincipal:
 
         if tipo == "lista_contatos":
             self.banco_local.upsert_contatos(evento.get("contatos", []))
-            self.tela_contatos.atualizar(evento.get("contatos", []))
+            self.tela_contatos.atualizar(self.banco_local.listar_contatos())
         elif tipo == "presenca":
             self.banco_local.atualizar_presenca(
                 evento.get("usuario"), evento.get("online", False)
@@ -136,12 +139,11 @@ class TelaPrincipal:
             if evento.get("sucesso"):
                 contato = evento.get("contato") or evento.get("usuario")
                 if isinstance(contato, dict):
-                    self.banco_local.upsert_contatos([contato])
+                    self.banco_local.adicionar_contato(contato)
                     contato = contato.get("usuario", contato.get("nome"))
-                self.tela_contatos.adicionar(
-                    contato,
-                    evento.get("online", False)
-                )
+                else:
+                    self.banco_local.adicionar_contato(contato)
+                self.tela_contatos.atualizar(self.banco_local.listar_contatos())
             self.tela_conversa.definir_status(evento.get("mensagem", ""))
         elif tipo == "resposta_remover_contato":
             if evento.get("sucesso"):
