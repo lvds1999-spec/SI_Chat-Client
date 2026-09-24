@@ -163,14 +163,6 @@ class TelaPrincipal:
                 self.tela_conversa.definir_status(
                     f"Nova mensagem de {remetente}."
                 )
-        elif tipo == "fila_offline":
-            mensagens = evento.get("mensagens", [])
-            for mensagem in mensagens:
-                self._processar_evento(mensagem)
-            if mensagens:
-                self.tela_conversa.definir_status(
-                    f"{len(mensagens)} mensagem(ns) recebida(s) enquanto offline."
-                )
         elif tipo == "aviso_digitando":
             if evento.get("remetente") == self.contato_selecionado:
                 texto = "está digitando..." if evento.get("digitando") else ""

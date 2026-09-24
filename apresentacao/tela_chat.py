@@ -263,9 +263,6 @@ class TelaChat:
             self.atualizar_lista_contatos()
             if remetente == self.contato_selecionado:
                 self.exibir_conversa()
-        elif tipo == "fila_offline":
-            for mensagem in evento.get("mensagens", []):
-                self._processar_evento(mensagem)
         elif tipo == "aviso_digitando":
             if evento.get("remetente") == self.contato_selecionado:
                 texto = "está digitando..." if evento.get("digitando") else ""
