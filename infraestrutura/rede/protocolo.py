@@ -1,4 +1,5 @@
 import json
+import uuid
 
 
 REGISTRO = "registro"
@@ -118,9 +119,10 @@ def criar_lista_contatos(contatos):
     }
 
 
-def criar_mensagem(remetente, destinatario, timestamp, texto):
+def criar_mensagem(remetente, destinatario, timestamp, texto, mensagem_id=None):
     return {
         "evento": MENSAGEM,
+        "id": mensagem_id or str(uuid.uuid4()),
         "remetente": remetente,
         "destinatario": destinatario,
         "timestamp": timestamp,
@@ -128,13 +130,18 @@ def criar_mensagem(remetente, destinatario, timestamp, texto):
     }
 
 
-def criar_entrega_mensagem(remetente, destinatario, timestamp):
-    return {
+def criar_entrega_mensagem(remetente, destinatario, timestamp, mensagem_id=None,
+                           status="entregue"):
+    evento = {
         "evento": ENTREGA_MENSAGEM,
         "remetente": remetente,
         "destinatario": destinatario,
         "timestamp": timestamp
     }
+    if mensagem_id is not None:
+        evento["id"] = mensagem_id
+    evento["status"] = status
+    return evento
 
 
 def criar_inicio_digitacao(remetente, destinatario):

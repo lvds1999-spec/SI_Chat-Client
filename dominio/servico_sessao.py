@@ -178,6 +178,8 @@ class ServicoSessao:
                 time.sleep(espera)
                 try:
                     self.cliente_socket.conectar()
+                    self.sessoes_contatos.clear()
+                    self._mensagens_pendentes_contato.clear()
                     self._iniciar_thread_recepcao()
                     self._notificar({
                         "evento": "estado_conexao",
