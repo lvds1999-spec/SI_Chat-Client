@@ -10,10 +10,12 @@ from infraestrutura.rede.protocolo import (
     DIGITANDO_INICIO,
     LISTA_CONTATOS,
     MENSAGEM,
+    ENTREGA_MENSAGEM,
     MUDANCA_PRESENCA,
     PRESENCA,
     RESPOSTA_ADICIONAR_CONTATO,
     RESPOSTA_LOGOUT,
+    RESPOSTA_LOGIN,
     RESPOSTA_REMOVER_CONTATO,
 )
 
@@ -138,7 +140,12 @@ class TelaPrincipal:
             return
         tipo = evento.get("evento")
 
-        if tipo in ("erro_conexao", "estado_conexao", "erro"):
+        if tipo == "erro" and evento.get("id"):
+            self.tela_conversa.atualizar_entrega({**evento, "status": "recusada"})
+            self.tela_conversa.definir_status(
+                evento.get("mensagem", "Não foi possível entregar a mensagem por segurança.")
+            )
+        elif tipo in ("erro_conexao", "estado_conexao", "erro"):
             if tipo == "estado_conexao" and evento.get("estado") == "reconectando":
                 mensagem = "Desconectado. Tentando reconectar..."
             elif tipo == "estado_conexao" and evento.get("estado") == "conectado":
@@ -182,6 +189,16 @@ class TelaPrincipal:
             self.tela_conversa.definir_status(evento.get("mensagem", ""))
         elif tipo == RESPOSTA_LOGOUT:
             self.concluir_logout()
+        elif tipo == RESPOSTA_LOGIN and evento.get("sucesso"):
+            self.servico_conversas.reenviar_pendentes()
+        elif tipo in (ENTREGA_MENSAGEM, "erro_entrega", "erro_seguranca"):
+            if tipo != ENTREGA_MENSAGEM:
+                evento = {**evento, "status": "recusada"}
+            self.tela_conversa.atualizar_entrega(evento)
+            if tipo != ENTREGA_MENSAGEM or evento.get("status") == "recusada":
+                self.tela_conversa.definir_status(
+                    evento.get("mensagem", "Não foi possível entregar a mensagem por segurança.")
+                )
         elif tipo == MENSAGEM:
             remetente = evento.get("remetente")
             self.banco_local.adicionar_contato({"usuario": remetente, "online": True})

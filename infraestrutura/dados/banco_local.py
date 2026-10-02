@@ -74,7 +74,7 @@ class BancoLocal:
         self.repositorio_contatos.remover(usuario)
 
     def salvar_mensagem(self, mensagem):
-        self.repositorio_historico.salvar(mensagem)
+        return self.repositorio_historico.salvar(mensagem)
 
     def listar_mensagens(self, contato, usuario):
         return self.repositorio_historico.listar(contato, usuario)

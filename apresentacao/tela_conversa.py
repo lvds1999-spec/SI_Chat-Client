@@ -17,10 +17,12 @@ class TelaConversa(tk.Frame):
         self._fim_digitando_job = None
         self._digitando_remoto = None
         self._limpar_digitando_job = None
+        self.online = False
 
         self.titulo = tk.Label(self, text="Selecione um contato", anchor="w")
         self.titulo.pack(fill=tk.X)
         self.historico = tk.Text(self, state=tk.DISABLED, wrap=tk.WORD)
+        self.historico.tag_configure("entrega_lida", foreground="blue")
         self.historico.pack(fill=tk.BOTH, expand=True, pady=8)
         self.status = tk.Label(self, text="", anchor="w")
         self.status.pack(fill=tk.X)
@@ -37,6 +39,7 @@ class TelaConversa(tk.Frame):
         self._encerrar_digitacao_local()
         self._limpar_digitando_remoto()
         self.destinatario = contato
+        self.online = bool(online)
         self._atualizar_titulo(online)
         self.mensagens[contato] = self.banco_local.listar_mensagens(
             contato, self.usuario
@@ -45,6 +48,7 @@ class TelaConversa(tk.Frame):
 
     def atualizar_presenca(self, usuario, online):
         if usuario == self.destinatario:
+            self.online = bool(online)
             self._atualizar_titulo(online)
 
     def _atualizar_titulo(self, online):
@@ -57,8 +61,33 @@ class TelaConversa(tk.Frame):
         if not contato:
             return
         if persistir:
-            self.banco_local.salvar_mensagem(mensagem)
+            if not self.banco_local.salvar_mensagem(mensagem):
+                return
         self.mensagens.setdefault(contato, []).append(mensagem)
+        self.mensagens[contato].sort(
+            key=lambda item: (item.get("timestamp", ""), str(item.get("id", "")))
+        )
+        if contato == self.destinatario:
+            self._renderizar()
+
+    def atualizar_entrega(self, evento):
+        mensagem_id = evento.get("id", evento.get("mensagem_id"))
+        contato = (
+            evento.get("destinatario")
+            if evento.get("remetente") == self.usuario
+            else evento.get("remetente")
+        )
+        status = evento.get("status", "entregue")
+        for mensagem in self.mensagens.get(contato, []):
+            if mensagem_id and str(mensagem.get("id")) == str(mensagem_id):
+                mensagem["status"] = status
+                self.banco_local.atualizar_status(mensagem, status)
+                break
+            if (not mensagem_id and mensagem.get("timestamp") == evento.get("timestamp")):
+                mensagem["status"] = status
+                self.banco_local.atualizar_status(mensagem, status)
+                break
+            self.banco_local.atualizar_status(evento, status)
         if contato == self.destinatario:
             self._renderizar()
 
@@ -96,6 +125,10 @@ class TelaConversa(tk.Frame):
         if not self.ao_digitando or not self.destinatario:
             return
         if self.campo.get():
+            if not self.online:
+                self.status.config(
+                    text=f"{self.destinatario} está offline; a mensagem será entregue quando conectar."
+                )
             if not self._digitando_local:
                 self._digitando_local = True
                 self.ao_digitando(True, self.destinatario)
@@ -137,6 +170,23 @@ class TelaConversa(tk.Frame):
             prefixo = mensagem.get("remetente")
             if prefixo == self.usuario:
                 prefixo = "Você"
-            self.historico.insert(tk.END, f"{prefixo}: {mensagem.get('texto', '')}\n")
+            marca = self._marca_entrega(mensagem)
+            self.historico.insert(tk.END, f"{prefixo}: {mensagem.get('texto', '')} ")
+            self.historico.insert(
+                tk.END,
+                f"{marca}\n",
+                "entrega_lida" if mensagem.get("status") == "lida" else (),
+            )
         self.historico.config(state=tk.DISABLED)
         self.historico.see(tk.END)
+
+    def _marca_entrega(self, mensagem):
+        if mensagem.get("remetente") != self.usuario:
+            return ""
+        return {
+            "pendente": "◷",
+            "enviado": "✓",
+            "entregue": "✓✓",
+            "lida": "✓✓",
+            "recusada": "! não entregue",
+        }.get(mensagem.get("status"), "")

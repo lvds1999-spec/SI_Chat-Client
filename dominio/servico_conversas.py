@@ -21,10 +21,14 @@ class ServicoConversas:
         self.banco_local.enfileirar_mensagem(evento)
         try:
             enviado = self.servico_sessao.enviar_mensagem_segura(evento)
-        except ConnectionError:
-            return evento
+        except (ConnectionError, OSError):
+            enviado = False
         if enviado:
+            evento["status"] = "enviado"
+            self.banco_local.atualizar_status(evento, "enviado")
             self.banco_local.remover_mensagem_pendente(evento)
+        else:
+            evento["status"] = "pendente"
         return evento
 
     def reenviar_pendentes(self):
@@ -32,7 +36,8 @@ class ServicoConversas:
             evento = {"evento": MENSAGEM, **mensagem}
             try:
                 enviado = self.servico_sessao.enviar_mensagem_segura(evento)
-            except ConnectionError:
+            except (ConnectionError, OSError):
                 break
             if enviado:
+                self.banco_local.atualizar_status(evento, "enviado")
                 self.banco_local.remover_mensagem_pendente(mensagem)
